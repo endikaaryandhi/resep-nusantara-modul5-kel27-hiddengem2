@@ -9,6 +9,7 @@ import { ArrowLeft, Heart, Clock, Users, ChefHat, Star, Send, Edit, Trash2 } fro
 import recipeService from '../../services/recipeService';
 import ConfirmModal from '../modals/ConfirmModal';
 import FavoriteButton from '../common/FavoriteButton';
+import ShareButton from '../common/ShareButton'; // <-- MODIFIKASI: Impor ShareButton
 import userService from '../../services/userService';
 
 export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'makanan' }) {
@@ -167,29 +168,41 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
           </button>
 
           {/* Action Buttons */}
-          {onEdit && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  console.log('🖱️ Edit button clicked in RecipeDetail');
-                  console.log('📝 Recipe ID:', recipeId);
-                  console.log('🔧 onEdit function:', onEdit);
-                  onEdit(recipeId);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Edit className="w-4 h-4" />
-                <span className="hidden md:inline">Edit</span>
-              </button>
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span className="hidden md:inline">Hapus</span>
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            
+            {/* --- MODIFIKASI: Tombol Share diletakkan di sini --- */}
+            <ShareButton 
+              title={recipe.name}
+              text={`Cek resep ${recipe.name} di Resep Nusantara!`}
+              recipeId={recipeId}
+              category={category}
+            />
+            {/* ----------------------------------------------- */}
+            
+            {onEdit && (
+              <>
+                <button
+                  onClick={() => {
+                    console.log('🖱️ Edit button clicked in RecipeDetail');
+                    console.log('📝 Recipe ID:', recipeId);
+                    console.log('🔧 onEdit function:', onEdit);
+                    onEdit(recipeId);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span className="hidden md:inline">Edit</span>
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden md:inline">Hapus</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -456,4 +469,3 @@ export default function RecipeDetail({ recipeId, onBack, onEdit, category = 'mak
     </div>
   );
 }
-

@@ -1,5 +1,7 @@
+// src/hooks/useRecipes.js
 import { useState, useEffect, useCallback } from 'react';
 import recipeService from '../services/recipeService';
+import { apiCache } from '../utils/cache'; // Import cache
 
 /**
  * Custom hook for fetching recipes
@@ -12,7 +14,21 @@ export function useRecipes(params = {}) {
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
 
-  const fetchRecipes = useCallback(async () => {
+  // Buat cache key unik berdasarkan parameter
+  const cacheKey = `recipes_${JSON.stringify(params)}`;
+
+  const fetchRecipes = useCallback(async (forceRefresh = false) => {
+    // Cek cache terlebih dahulu
+    if (!forceRefresh) {
+      const cachedData = apiCache.get(cacheKey);
+      if (cachedData) {
+        setRecipes(cachedData.data || []);
+        setPagination(cachedData.pagination || null);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -21,6 +37,8 @@ export function useRecipes(params = {}) {
       if (response.success) {
         setRecipes(response.data || []);
         setPagination(response.pagination || null);
+        // Simpan ke cache
+        apiCache.set(cacheKey, response);
       } else {
         setError(response.message || 'Failed to fetch recipes');
       }
@@ -30,7 +48,7 @@ export function useRecipes(params = {}) {
     } finally {
       setLoading(false);
     }
-  }, [JSON.stringify(params)]);
+  }, [JSON.stringify(params), cacheKey]); // Gunakan JSON.stringify(params) untuk dependensi
 
   useEffect(() => {
     fetchRecipes();
@@ -41,7 +59,7 @@ export function useRecipes(params = {}) {
     loading,
     error,
     pagination,
-    refetch: fetchRecipes,
+    refetch: () => fetchRecipes(true), // Refetch akan memaksa pembaruan
   };
 }
 
@@ -55,10 +73,22 @@ export function useRecipe(id) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchRecipe = useCallback(async () => {
+  const cacheKey = `recipe_${id}`;
+
+  const fetchRecipe = useCallback(async (forceRefresh = false) => {
     if (!id) {
       setLoading(false);
       return;
+    }
+
+    // Cek cache
+    if (!forceRefresh) {
+      const cachedData = apiCache.get(cacheKey);
+      if (cachedData) {
+        setRecipe(cachedData.data);
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -68,6 +98,8 @@ export function useRecipe(id) {
       
       if (response.success) {
         setRecipe(response.data);
+        // Simpan ke cache
+        apiCache.set(cacheKey, response);
       } else {
         setError(response.message || 'Failed to fetch recipe');
       }
@@ -77,7 +109,7 @@ export function useRecipe(id) {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, cacheKey]);
 
   useEffect(() => {
     fetchRecipe();
@@ -87,6 +119,6 @@ export function useRecipe(id) {
     recipe,
     loading,
     error,
-    refetch: fetchRecipe,
+    refetch: () => fetchRecipe(true),
   };
 }

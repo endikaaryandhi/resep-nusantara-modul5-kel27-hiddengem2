@@ -1,15 +1,12 @@
 // src/components/common/FavoriteButton.jsx
-import { useState, useEffect } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
+import { useIsFavorited } from '../../hooks/useFavorites'; 
 
-/**
- * FavoriteButton Component
- * Toggles favorite status with localStorage support
- */
-export default function FavoriteButton({ recipeId, onToggle, showCount = false, initialCount = 0, size = 'md' }) {
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [favoriteCount, setFavoriteCount] = useState(initialCount);
-  const [isAnimating, setIsAnimating] = useState(false);
+// --- MODIFIKASI: Terima 'onToggleComplete' sebagai prop ---
+export default function FavoriteButton({ recipeId, size = 'md', onToggleComplete }) {
+  
+  // Hook ini tetap digunakan untuk menangani logika API
+  const { isFavorited, loading, toggleFavorite } = useIsFavorited(recipeId);
 
   // Size variants
   const sizes = {
@@ -24,72 +21,48 @@ export default function FavoriteButton({ recipeId, onToggle, showCount = false, 
     lg: 'w-6 h-6'
   };
 
-  // Check if recipe is favorited on mount
-  useEffect(() => {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    setIsFavorited(favorites.includes(recipeId));
-  }, [recipeId]);
-
   const handleToggle = async (e) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation(); 
+    if (loading) return;
     
-    setIsAnimating(true);
-    setTimeout(() => setIsAnimating(false), 300);
+    // Panggil fungsi toggle dari hook. Ini akan memanggil API
+    // dan juga memanggil refetch() internal hook tersebut.
+    const result = await toggleFavorite();
 
-    // Toggle in localStorage
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    const index = favorites.indexOf(recipeId);
-    
-    let newFavoritedState;
-    if (index > -1) {
-      // Remove from favorites
-      favorites.splice(index, 1);
-      newFavoritedState = false;
-      setFavoriteCount(prev => Math.max(0, prev - 1));
-    } else {
-      // Add to favorites
-      favorites.push(recipeId);
-      newFavoritedState = true;
-      setFavoriteCount(prev => prev + 1);
-    }
-    
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-    setIsFavorited(newFavoritedState);
-
-    // Call parent callback if provided
-    if (onToggle) {
-      onToggle(recipeId, newFavoritedState);
+    // --- MODIFIKASI: Panggil callback 'onToggleComplete' jika ada ---
+    if (result && onToggleComplete) {
+      // 'result.is_favorited' adalah status BARU dari server
+      // Kirim status baru ini kembali ke parent (ProfilePage)
+      onToggleComplete(recipeId, result.is_favorited);
     }
   };
 
   return (
     <button
       onClick={handleToggle}
+      disabled={loading}
       className={`
         ${sizes[size]} rounded-full flex items-center justify-center gap-1.5
         transition-all duration-200 
         ${isFavorited 
-          ? 'bg-red-500 hover:bg-red-600 text-white' 
+          ? 'bg-red-100 text-red-600' 
           : 'bg-white/90 hover:bg-white text-slate-700 hover:text-red-500'
         }
-        backdrop-blur-sm shadow-md hover:shadow-lg
-        ${isAnimating ? 'scale-125' : 'scale-100'}
+        backdrop-blur-sm shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed
         group
       `}
-      title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+      title={isFavorited ? 'Hapus dari favorit' : 'Tambah ke favorit'}
     >
-      <Heart 
-        className={`
-          ${iconSizes[size]} 
-          transition-all duration-200
-          ${isFavorited ? 'fill-current' : ''}
-          ${isAnimating ? 'animate-pulse' : ''}
-        `} 
-      />
-      {showCount && favoriteCount > 0 && (
-        <span className="text-xs font-semibold">
-          {favoriteCount > 999 ? '999+' : favoriteCount}
-        </span>
+      {loading ? (
+        <Loader2 className={`${iconSizes[size]} animate-spin text-slate-500`} />
+      ) : (
+        <Heart 
+          className={`
+            ${iconSizes[size]} 
+            transition-all duration-200
+            ${isFavorited ? 'fill-current text-red-600' : 'text-slate-500 group-hover:text-red-500'}
+          `} 
+        />
       )}
     </button>
   );
