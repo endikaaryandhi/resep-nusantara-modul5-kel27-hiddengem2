@@ -215,7 +215,7 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
     return true;
   };
 
-  // Submit form (PATCH - partial update)
+  // Submit form (PUT - full update)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -230,6 +230,7 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
       // Prepare update data
       const updateData = {};
 
+      // --- MODIFIKASI LOGIKA GAMBAR ---
       // Step 1: Upload new image if selected
       if (imageFile) {
         setUploading(true);
@@ -240,10 +241,15 @@ export default function EditRecipePage({ recipeId, onBack, onSuccess }) {
           throw new Error('Gagal upload gambar');
         }
         setUploading(false);
-      } else if (!currentImageUrl && !imageFile) {
-        // If original image was removed and no new image
+      } else if (currentImageUrl) {
+        // JIKA TIDAK ADA FILE BARU, tapi currentImageUrl ADA (tidak dihapus),
+        // gunakan URL yang ada sekarang.
+        updateData.image_url = currentImageUrl;
+      } else {
+        // Jika tidak ada file baru DAN currentImageUrl kosong (dihapus oleh user)
         updateData.image_url = '';
       }
+      // --- AKHIR MODIFIKASI LOGIKA GAMBAR ---
 
       // Step 2: Add other fields
       const validIngredients = ingredients.filter(ing => ing.name.trim() && ing.quantity.trim());

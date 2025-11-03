@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.jsx
-import { useState, useEffect } from 'react'; // <-- Pastikan useEffect dan useState di-import
+import { useState, useEffect, useRef } from 'react'; // <-- MODIFIKASI: Tambahkan useRef
 import { User, Edit3, Save, Camera, Heart, Mail, Info } from 'lucide-react';
 import userService from '../services/userService';
 import { useFavorites } from '../hooks/useFavorites';
@@ -25,25 +25,23 @@ export default function ProfilePage({ onRecipeClick }) {
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState(profile.username);
   const [bio, setBio] = useState(profile.bio);
+  const fileInputRef = useRef(null); // <-- MODIFIKASI: Ref untuk input file
 
-  // Hook untuk fetching data asli dari API
+  // ... (Hook useFavorites dan state localFavorites tetap sama) ...
   const { 
-    favorites: apiFavorites, // Ganti nama 'favorites' -> 'apiFavorites'
+    favorites: apiFavorites,
     loading: favoritesLoading, 
     error: favoritesError, 
     refetch: refetchFavorites 
   } = useFavorites();
 
-  // --- MODIFIKASI: State lokal untuk daftar favorit ---
-  // Kita merender dari state ini agar bisa memanipulasinya secara instan
   const [localFavorites, setLocalFavorites] = useState([]);
 
-  // --- MODIFIKASI: Sinkronkan data API ke state lokal saat pertama kali dimuat ---
   useEffect(() => {
     if (apiFavorites) {
       setLocalFavorites(apiFavorites);
     }
-  }, [apiFavorites]); // Ini hanya berjalan saat 'apiFavorites' dari hook berubah
+  }, [apiFavorites]);
 
   useEffect(() => {
     refetchFavorites();
@@ -56,19 +54,56 @@ export default function ProfilePage({ onRecipeClick }) {
     setIsEditing(false);
     alert('Profil berhasil diperbarui!');
   };
+  
+  // --- MODIFIKASI BARU: Fungsi untuk menangani klik avatar ---
+  const handleAvatarClick = () => {
+    fileInputRef.current.click();
+  };
 
-  // --- MODIFIKASI: Fungsi yang akan dipanggil oleh FavoriteButton ---
-  const handleFavoriteToggle = (toggledRecipeId, newIsFavoritedState) => {
-    // 'newIsFavoritedState' akan bernilai 'false' jika kita baru saja meng-unfavorite
-    if (newIsFavoritedState === false) {
-      // Hapus item dari state LOKAL secara instan
+  // --- MODIFIKASI BARU: Fungsi untuk menangani perubahan file avatar ---
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validasi sederhana (tipe dan ukuran)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Format file tidak valid. Harap gunakan .jpg, .png, atau .webp.');
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      alert('Ukuran file terlalu besar. Maksimal 2MB.');
+      return;
+    }
+
+    // Ubah gambar menjadi Base64
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result;
+      
+      // Simpan menggunakan userService
+      userService.updateAvatar(base64String);
+      
+      // Perbarui state profil secara instan
+      setProfile(userService.getUserProfile());
+      alert('Foto profil berhasil diperbarui!');
+    };
+    reader.onerror = (error) => {
+      console.error('Error reading file:', error);
+      alert('Gagal membaca file gambar.');
+    };
+  };
+  
+  // ... (Fungsi handleFavoriteToggle tetap sama) ...
+  const handleFavoriteToggle = (toggledRecipeId, newIsFavoritdState) => {
+    if (newIsFavoritdState === false) {
       setLocalFavorites(prevFavorites => 
         prevFavorites.filter(recipe => recipe.id !== toggledRecipeId)
       );
     }
-    // Kita tidak perlu memanggil refetchFavorites() di sini,
-    // karena FavoriteButton (via useIsFavorited) sudah melakukannya 
-    // di background untuk kita. Ini hanya untuk update UI instan.
   };
 
   return (
@@ -76,13 +111,47 @@ export default function ProfilePage({ onRecipeClick }) {
       <main className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
         {/* Profile Card */}
         <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 md:p-8 shadow-xl border border-white/40 mb-8">
-          {/* ... (Kode untuk info profil, edit, save... tetap sama) ... */}
+          
           <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="relative">
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white shadow-lg">
-                <User className="w-12 h-12 md:w-16 md:h-16" />
+            
+            {/* --- MODIFIKASI BESAR: Tampilan Foto Profil --- */}
+            <div className="relative group">
+              {/* Input file tersembunyi */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                accept="image/png, image/jpeg, image/webp"
+                className="hidden"
+              />
+              
+              {/* Kontainer Avatar */}
+              <div 
+                className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white shadow-lg overflow-hidden"
+              >
+                {profile.avatar ? (
+                  <img 
+                    src={profile.avatar} 
+                    alt="Foto Profil" 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <User className="w-12 h-12 md:w-16 md:h-16" />
+                )}
               </div>
+              
+              {/* Tombol Ganti Foto (overlay saat hover) */}
+              <button
+                onClick={handleAvatarClick}
+                className="absolute inset-0 w-24 h-24 md:w-32 md:h-32 rounded-full bg-black/50 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                title="Ganti foto profil"
+              >
+                <Camera className="w-6 h-6" />
+                <span className="text-xs font-medium mt-1">Ganti Foto</span>
+              </button>
             </div>
+            {/* --- AKHIR MODIFIKASI FOTO PROFIL --- */}
+
             
             <div className="flex-1 text-center md:text-left">
               {isEditing ? (
@@ -136,7 +205,6 @@ export default function ProfilePage({ onRecipeClick }) {
             Resep Favorit
           </h2>
           
-          {/* MODIFIKASI: Tampilkan skeleton hanya jika loading DAN state lokal masih kosong */}
           {favoritesLoading && localFavorites.length === 0 && (
             <div className="space-y-4">
               <RecipeCardSmallSkeleton />
@@ -150,7 +218,6 @@ export default function ProfilePage({ onRecipeClick }) {
             </div>
           )}
           
-          {/* MODIFIKASI: Cek 'localFavorites.length' */}
           {!favoritesLoading && !favoritesError && localFavorites.length === 0 && (
             <div className="text-center py-8">
               <p className="text-slate-500">Anda belum memiliki resep favorit.</p>
@@ -158,7 +225,6 @@ export default function ProfilePage({ onRecipeClick }) {
             </div>
           )}
           
-          {/* MODIFIKASI: Render dari 'localFavorites' */}
           {!favoritesError && localFavorites.length > 0 && (
             <div className="grid grid-cols-1 gap-4">
               {localFavorites.map(recipe => (
@@ -166,7 +232,7 @@ export default function ProfilePage({ onRecipeClick }) {
                   key={recipe.id}
                   recipe={recipe}
                   onClick={() => onRecipeClick(recipe.id, recipe.category)}
-                  onToggleComplete={handleFavoriteToggle} // <-- MODIFIKASI: Teruskan fungsi callback
+                  onToggleComplete={handleFavoriteToggle}
                 />
               ))}
             </div>

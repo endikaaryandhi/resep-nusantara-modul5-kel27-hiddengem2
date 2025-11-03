@@ -1,6 +1,7 @@
 // src/components/home/FeaturedMinumanSection.jsx
 import { Clock, Star, ChefHat, Coffee } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import LazyImage from '../common/LazyImage'; // --- MODIFIKASI: Impor LazyImage ---
 
 export default function FeaturedMinumanSection({ recipes, loading, error, onRecipeClick, onNavigate }) {
   const [visibleMinuman, setVisibleMinuman] = useState(new Set());
@@ -18,6 +19,9 @@ export default function FeaturedMinumanSection({ recipes, loading, error, onReci
       });
     }, { threshold: 0.1 });
 
+    // Bersihkan refs yang mungkin sudah tidak ada
+    minumanRefs.current = minumanRefs.current.slice(0, recipes.length);
+
     minumanRefs.current.forEach((ref, index) => {
       if (ref) {
         ref.dataset.index = index;
@@ -26,9 +30,13 @@ export default function FeaturedMinumanSection({ recipes, loading, error, onReci
     });
 
     return () => {
+      // Pastikan membersihkan observer dari semua elemen
+      minumanRefs.current.forEach(ref => {
+        if (ref) observerMinuman.unobserve(ref);
+      });
       observerMinuman.disconnect();
     };
-  }, [recipes]);
+  }, [recipes]); // Tambahkan recipes sebagai dependensi
 
   if (loading) {
     return (
@@ -80,7 +88,7 @@ export default function FeaturedMinumanSection({ recipes, loading, error, onReci
         {recipes.map((recipe, index) => (
           <div 
             key={recipe.id}
-            ref={el => minumanRefs.current[index] = el}
+            ref={el => { if (el) minumanRefs.current[index] = el; }} // Pastikan el ada
             className={`group transform transition-all duration-700 ${
               visibleMinuman.has(index) 
                 ? 'translate-y-0 opacity-100' 
@@ -94,14 +102,15 @@ export default function FeaturedMinumanSection({ recipes, loading, error, onReci
               <div className="absolute inset-0 bg-linear-to-br from-white/5 via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
               <div className="flex">
-                {/* Recipe Image */}
-                <div className="h-29 w-28 md:h-48 md:w-48 flex-shrink-0 overflow-hidden">
-                  <img 
-                    src={recipe.image_url}
-                    alt={recipe.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                </div>
+                
+                {/* --- MODIFIKASI: Ganti <img> dengan LazyImage --- */}
+                <LazyImage 
+                  src={recipe.image_url}
+                  alt={recipe.name}
+                  containerClassName="h-29 w-28 md:h-48 md:w-48 flex-shrink-0 overflow-hidden" // Kelas untuk layout/dimensi
+                  imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" // Kelas untuk styling <img>
+                />
+                {/* --- AKHIR MODIFIKASI --- */}
 
                 <div className="relative z-10 p-4 md:p-8 flex-1 flex flex-col justify-center">
                   <div className="flex items-center justify-between mb-2 md:mb-4">

@@ -1,6 +1,7 @@
 // src/components/home/FeaturedMakananSection.jsx
 import { Clock, Star, ChefHat } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import LazyImage from '../common/LazyImage'; // --- MODIFIKASI: Impor LazyImage ---
 
 export default function FeaturedMakananSection({ recipes, loading, error, onRecipeClick, onNavigate }) {
   const [visibleMakanan, setVisibleMakanan] = useState(new Set());
@@ -18,6 +19,9 @@ export default function FeaturedMakananSection({ recipes, loading, error, onReci
       });
     }, { threshold: 0.1 });
 
+    // Bersihkan refs yang mungkin sudah tidak ada
+    makananRefs.current = makananRefs.current.slice(0, recipes.length);
+
     makananRefs.current.forEach((ref, index) => {
       if (ref) {
         ref.dataset.index = index;
@@ -26,9 +30,13 @@ export default function FeaturedMakananSection({ recipes, loading, error, onReci
     });
 
     return () => {
+      // Pastikan membersihkan observer dari semua elemen
+      makananRefs.current.forEach(ref => {
+        if (ref) observerMakanan.unobserve(ref);
+      });
       observerMakanan.disconnect();
     };
-  }, [recipes]);
+  }, [recipes]); // Tambahkan recipes sebagai dependensi
 
   if (loading) {
     return (
@@ -80,7 +88,7 @@ export default function FeaturedMakananSection({ recipes, loading, error, onReci
         {recipes.map((recipe, index) => (
           <div 
             key={recipe.id} 
-            ref={el => makananRefs.current[index] = el}
+            ref={el => { if (el) makananRefs.current[index] = el; }} // Pastikan el ada
             className={`group transform transition-all duration-700 ${
               visibleMakanan.has(index) 
                 ? 'translate-y-0 opacity-100' 
@@ -93,15 +101,17 @@ export default function FeaturedMakananSection({ recipes, loading, error, onReci
               
               <div className="absolute inset-0 bg-linear-to-br from-white/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
-              {/* Recipe Image*/}
-              <div className="relative h-32 md:h-56 overflow-hidden">
-                <img 
-                  src={recipe.image_url}
-                  alt={recipe.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-              </div>
+              {/* --- MODIFIKASI: Ganti <img> dengan LazyImage --- */}
+              <LazyImage 
+                src={recipe.image_url}
+                alt={recipe.name}
+                containerClassName="relative h-32 md:h-56 overflow-hidden" // Kelas untuk layout/dimensi
+                imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" // Kelas untuk styling <img>
+              />
+              {/* --- AKHIR MODIFIKASI --- */}
+              
+              {/* Gradien overlay (tetap di atas gambar) */}
+              <div className="absolute inset-0 top-0 h-32 md:h-56 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
               
               <div className="relative z-10 p-4 md:p-8">
                 <div className="flex items-center justify-between mb-3 md:mb-4">
